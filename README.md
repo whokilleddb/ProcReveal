@@ -19,9 +19,25 @@ The code consists of two parts a client and a driver. We would first look at the
 
 The Driver has the following functions:
 
-- `DriverEntry()` 
-- `ProcRevealUnload()`
-- `ProcRevealCreateClose()`
-- ` ProcRevealDeviceControl()`
+- `DriverEntry()` - Driver entry point function
+- `ProcRevealUnload()` - This function is called when the system unloads our driver
+- `ProcRevealCreateClose()` - This function handles Create/Close dispatch routines issued by the Client
+- ` ProcRevealDeviceControl()` - This function handles the DeviceControl dispatch routines issued by the Client
+
+### DriverEntry, ProcRevealCreateClose and ProcRevealUnload
+
+I am going to speedrun through these functions as they are almost the same as last time. 
+
+#### DriverEntry()
+
+Just like before we fill the major function array entries with the associated functions responsible for handling the respective dispatch routines. Then we create a Kernel device using `IoCreateDevice()`. Clients will be interacting with this device object. Finally, we create a symlink pointing to that device with `IoCreateSymbolicLink()`. That's it.
+
+#### ProcRevealCreateClose()
+
+This function is responsible for handling all Create and Close dispatch routines. This is a good time to introduce the `CompleteRequest()` function - which is just a convinience function we have so that we dont have to write the same repetative code to complete IRPs.
+
+#### ProcRevealUnload()
+
+This function is called when the driver is unloaded by the system. It performs the necessary cleanups like deleting the Device object we previously created as well as the corresponding symlink.
 
 ## Client 
