@@ -18,7 +18,7 @@ int main(int argc, char * argv[]) {
 
 	hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
 	if (hProcess != NULL) {
-		printf("[i] Opened target process with `PROCESS_ALL_ACCESS` using OpenProcess()\n");
+		printf("[i] Opened handle to target process using OpenProcess():\t0x%x\n", hProcess);
 		CloseHandle(hProcess);
 		return 1;
 	}
