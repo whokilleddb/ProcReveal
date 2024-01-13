@@ -22,7 +22,7 @@ The Driver has the following functions:
 - `DriverEntry()` - Driver entry point function
 - `ProcRevealUnload()` - This function is called when the system unloads our driver
 - `ProcRevealCreateClose()` - This function handles Create/Close dispatch routines issued by the Client
-- ` ProcRevealDeviceControl()` - This function handles the DeviceControl dispatch routines issued by the Client
+- `ProcRevealDeviceControl()` - This function handles the DeviceControl dispatch routines issued by the Client
 
 ### DriverEntry, ProcRevealCreateClose and ProcRevealUnload
 
@@ -39,5 +39,52 @@ This function is responsible for handling all Create and Close dispatch routines
 #### ProcRevealUnload()
 
 This function is called when the driver is unloaded by the system. It performs the necessary cleanups like deleting the Device object we previously created as well as the corresponding symlink.
+
+### ProcRevealDeviceControl
+
+This function is responsible for handling any Device Control dispatch requests. The code function looks like:
+
+```c
+NTSTATUS ProcRevealDeviceControl(PDEVICE_OBJECT _DeviceObject, PIRP Irp) {
+	UNREFERENCED_PARAMETER(_DeviceObject);
+	
+	ULONG len = 0;
+	NTSTATUS status = STATUS_INVALID_DEVICE_REQUEST;
+	PIO_STACK_LOCATION irpSp = IoGetCurrentIrpStackLocation(Irp);
+
+	switch (irpSp->Parameters.DeviceIoControl.IoControlCode) {
+		case IOCTL_OPEN_PROCESS:
+			// Check size of input and output buffer sizes
+			if (irpSp->Parameters.DeviceIoControl.InputBufferLength < sizeof(ProcessData) ||
+				irpSp->Parameters.DeviceIoControl.OutputBufferLength < sizeof(HANDLE)) {
+				status = STATUS_BUFFER_TOO_SMALL;
+				break;
+			}
+
+			// Get process data sent by client
+			ProcessData* cData = (ProcessData*)Irp->AssociatedIrp.SystemBuffer;
+			if (NULL == cData) {
+				status = STATUS_INVALID_PARAMETER;
+				break;
+			}
+
+			CLIENT_ID cid = { 0 };
+			cid.UniqueProcess = ULongToHandle(cData->ProcessId);
+			// InitializeObjectAttributes(&objAttr, NULL, 0, NULL, NULL);
+			OBJECT_ATTRIBUTES objAttr = RTL_CONSTANT_OBJECT_ATTRIBUTES(NULL, 0);
+			HANDLE hProcess;
+			status = ZwOpenProcess(&hProcess, cData->Access, &objAttr, &cid);
+			if (NT_SUCCESS(status)) {
+				len = sizeof(HANDLE);
+				KdPrint((DRIVER_PREFIX "Escalated Handle:\t0x%p\n", hProcess));
+				memcpy(cData, &hProcess, sizeof(hProcess));
+				// *(HANDLE*)data = hProcess;
+			}
+			break;
+	}
+
+	return CompleteRequest(Irp, status, len);
+}
+```
 
 ## Client 
