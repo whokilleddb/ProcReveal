@@ -97,6 +97,19 @@ For example, our driver uses just one control code - `IOCTL_OPEN_PROCESS`. This 
 
 ![](https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/images/ioctl-1.png)
 
-Windows makes it easier for us to define a control code using the `CTL_CODE` macro.
+Windows makes it easier for us to define a control code using the `CTL_CODE` macro, which expands to:
+
+```
+#define CTL_CODE( DeviceType, Function, Method, Access ) (                 \
+    ((DeviceType) << 16) | ((Access) << 14) | ((Function) << 2) | (Method) \
+)
+```
+
+[This Microsoft article](https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/defining-i-o-control-codes) goes through the details of defining I/O Control Codes. Just to give a quick rundown, 
+- *DeviceType*: This value identifies the device type and must be greater than or equal to 0x8000 because values lower than that are reserved for Microsoft. 
+- *Function*: This value identifies the function to be performed by the driver and must be higher than or equal to 0x800.
+- *Method*: Indicates how the system will pass data between the Client and the Driver, essentially the [Buffer Descriptions to go along with the IOCTL](https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/buffer-descriptions-for-i-o-control-codes). More on this later.
+- *Access* - Indicates the type of access that a caller must request when opening the file object that represents the device.
+
 
 ## Client 
