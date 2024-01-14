@@ -138,5 +138,44 @@ typedef struct _ProcessData {
 
 If the buffer lengths are okay, we then map the `AssociatedIrp.SystemBuffer` to a `ProcessData` struct. The `AssociatedIrp.SystemBuffer` is where the I/O Manager copies the user supplied buffer to make it accessible to the Driver. 
 
-
 ## Client 
+
+Coming to the client code, this is what a barebones version of the code looks:
+
+```c
+int main(int argc, char * argv[]) {
+	char* __t;
+	HANDLE hProcess;
+	DWORD bytes = 0;
+	ProcessData data = { 0 };
+	
+	if (argc != 2) return -1;
+
+	ULONG pid = strtoul(argv[1], &__t, 10);
+
+	hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+	if (hProcess != NULL) {
+		CloseHandle(hProcess);
+		return 1;
+	}
+
+	HANDLE hDevice = CreateFile(USER_DEVICE_SYM_LINK, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+
+	data.ProcessId = pid;
+	data.Access = PROCESS_ALL_ACCESS;
+
+	DeviceIoControl(hDevice, IOCTL_OPEN_PROCESS, &data, sizeof(data), &hProcess, sizeof(hProcess), &bytes, NULL);
+	CloseHandle(hDevice);
+
+	CloseHandle(hProcess);
+}
+```
+
+The client checks for the correct user supplied Process ID, converts it into a ULONG and then tries to open a handle using `OpenProcess()` and in case it fails (which we are expecting it to), we move onto opening a handle to our device object, using `CreateFile()` (read [the previous article](https://github.com/whokilleddb/BoosterDriver) for details). Then we set the specify the target pid and the desired access right in the `ProcessData` struct. 
+
+Finally, we call the [`DeviceIoControl()`](https://learn.microsoft.com/en-us/windows/win32/api/ioapiset/nf-ioapiset-deviceiocontrol) function.
+
+
+# Driver-Client in Action
+
+
