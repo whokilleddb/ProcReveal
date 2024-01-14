@@ -87,4 +87,16 @@ NTSTATUS ProcRevealDeviceControl(PDEVICE_OBJECT _DeviceObject, PIRP Irp) {
 }
 ```
 
+The first thing we need to understand before diving into the function is the idea of Control Codes. According to [MSDN](https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/introduction-to-i-o-control-codes):
+
+> I/O control codes (IOCTLs) are used for communication between user-mode applications and drivers, or for communication internally among drivers in a stack. I/O control codes are sent using IRPs.
+
+These codes are help the driver to define the functionality which the client seeks out of it. For example, a dispatch routine can have functionality to support various control codes, each of which caters to a specific condition. 
+
+For example, our driver uses just one control code - `IOCTL_OPEN_PROCESS`. This cannot be an arbitrary number. Infact, there is a very specific way of constructing a Control Code. An I/O control code is a 32-bit value that consists of several fields. The following figure illustrates the layout of I/O control codes:
+
+![](https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/images/ioctl-1.png)
+
+Windows makes it easier for us to define a control code using the `CTL_CODE` macro.
+
 ## Client 
