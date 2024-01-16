@@ -209,8 +209,20 @@ int main(int argc, char * argv[]) {
 
 The client checks for the correct user supplied Process ID, converts it into a ULONG and then tries to open a handle using `OpenProcess()` and in case it fails (which we are expecting it to), we move onto opening a handle to our device object, using `CreateFile()` (read [the previous article](https://github.com/whokilleddb/BoosterDriver) for details). Then we set the specify the target pid and the desired access right in the `ProcessData` struct. 
 
-Finally, we call the [`DeviceIoControl()`](https://learn.microsoft.com/en-us/windows/win32/api/ioapiset/nf-ioapiset-deviceiocontrol) function.
+Finally, we call the [`DeviceIoControl()`](https://learn.microsoft.com/en-us/windows/win32/api/ioapiset/nf-ioapiset-deviceiocontrol) function - the hero of the show. The parameters to the function are as follows:
 
+| Variable | Value | Description |
+|---|---|-----|
+|`[in] HANDLE hDevice`|`hDevice`| Handle to the kernel device object |
+|`[in] DWORD dwIoControlCode` |`IOCTL_OPEN_PROCESS`| The I/O control code for the operation |
+|`[in, optional] LPVOID lpInBuffer`|`&data`| Pointer to the input buffer, aka a `ProcessData` struct which contains the user specified options | 
+|`[in] DWORD nInBufferSize`| `sizeof(data)`| The size of the input buffer |
+|`[out, optional] LPVOID lpOutBuffer`|`&hProcess`| A pointer to the output buffer which is to receive the handle |
+|`[in] nOutBufferSize`| `sizeof(hProcess)` | Size of output buffer |
+|`[out, optional] LPDWORD lpBytesReturned`| `&bytes` | A pointer to a variable that receives the size of the data stored in the output buffer, in bytes |
+|`[in, out, optional] LPOVERLAPPED lpOverlapped`|`NULL`|A pointer to an `OVERLAPPED` structure, something we dont need right now |
+
+If the call to `DeviceIoControl()` succeeds, we should have a handle to the process with `PROCESS_ALL_ACCESS` permissions!  
 
 # Driver-Client in Action
 
