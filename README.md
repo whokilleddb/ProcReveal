@@ -226,4 +226,24 @@ If the call to `DeviceIoControl()` succeeds, we should have a handle to the proc
 
 # Driver-Client in Action
 
+First, we use the `sc.exe` command line utility to load and start the driver. Once the driver has been loaded and is up running, we can use the client to get a handle to a protected process - let's say `lsass.exe`.
 
+
+![](./imgs/client.png)
+
+We see that the initial `OpenProcess()` calls failed with the error code `0x5` aka `ERROR_ACCESS_DENIED` as expected because `lsass.exe` is a protected process afterall. Once this fails, the client uses the Kernel device to get a handle to the process. Since there is nothing called a *Protected Process* from the Kernel Land (loosely speaking), we are able to get a handle to the process. 
+
+Just to verify this, we can always open up Process Hacker and examine the Handles tab of the Client Program, and there we should see the handle to the process being reflected there, indicating that our program works as expected! 
+
+# Conclusion 
+
+With that, we complete another code-walkthrough of the series. In case you haven't been following along, here are the previous ones, in order:
+
+1. [HelloWorldDriver](https://github.com/whokilleddb/HelloWorldDriver)
+2. [BoosterDriver](https://github.com/whokilleddb/BoosterDriver)
+
+That being said, congratualtions if you made it this far and thanks for reading it through! This blog post is a part of my efforts to document my journey into Windows Kernel Land while going through [@zodicon's Windows Internal training](https://training.trainsec.net/view/courses/windows-kernel-programming-1). Feel free to reach out to me with any and all feedback - and follow my [Github](https://github.com/whokilleddb/)/[LinkedIn](https://www.linkedin.com/in/whokilleddb?originalSubdomain=in) for more updates in the future. Till next time - Happy Hacking 🎉
+
+# References
+
+This article is directly influenced by [@zodicon's Windows Internal training](https://training.trainsec.net/view/courses/windows-kernel-programming-1) and I recommend everyone interested in Windows Kernel Development to check it out.
