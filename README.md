@@ -70,7 +70,7 @@ NTSTATUS ProcRevealDeviceControl(PDEVICE_OBJECT _DeviceObject, PIRP Irp) {
 
 			CLIENT_ID cid = { 0 };
 			cid.UniqueProcess = ULongToHandle(cData->ProcessId);
-			// InitializeObjectAttributes(&objAttr, NULL, 0, NULL, NULL);
+
 			OBJECT_ATTRIBUTES objAttr = RTL_CONSTANT_OBJECT_ATTRIBUTES(NULL, 0);
 			HANDLE hProcess;
 			status = ZwOpenProcess(&hProcess, cData->Access, &objAttr, &cid);
@@ -78,7 +78,6 @@ NTSTATUS ProcRevealDeviceControl(PDEVICE_OBJECT _DeviceObject, PIRP Irp) {
 				len = sizeof(HANDLE);
 				KdPrint((DRIVER_PREFIX "Escalated Handle:\t0x%p\n", hProcess));
 				memcpy(cData, &hProcess, sizeof(hProcess));
-				// *(HANDLE*)data = hProcess;
 			}
 			break;
 	}
@@ -136,7 +135,44 @@ typedef struct _ProcessData {
 } ProcessData;
 ```
 
-If the buffer lengths are okay, we then map the `AssociatedIrp.SystemBuffer` to a `ProcessData` struct. The `AssociatedIrp.SystemBuffer` is where the I/O Manager copies the user supplied buffer to make it accessible to the Driver. 
+If the buffer lengths are okay, we then map the `AssociatedIrp.SystemBuffer` to a `ProcessData` struct. The `AssociatedIrp.SystemBuffer` is where the I/O Manager copies the user supplied buffer to make it accessible to the Driver, and mapping it to the structure allows us to easily access it. 
+
+Moving on - the crux of the program lies in the [`ZwOpenProcess()`](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/nf-ntddk-zwopenprocess) function - which does the heavy lifting for us. Consider it analagous to the `OpenProcess()` function(to be more accurate, it's the kernel counterpat to `NtOpenProcess()`) - but with Kernel powers. 
+
+The `ZwOpenProcess()` function takes the following parameters:
+
+| Parameter | Value | Description |
+|-----|---|----|
+|`[out] PHANDLE ProcessHandle` | `&hProcess` | A pointer to a `HANDLE`. The ZwOpenProcess routine writes the process handle to the variable that this parameter points to. | 
+| `[in] ACCESS_MASK DesiredAcces` | `cData->Access` | The access right to the process project which the client requests |
+|`[in] POBJECT_ATTRIBUTES ObjectAttributes,`|`&objAttr`| Pointer to an `OBJECT_ATTRIBUTES` structure that specifies the attributes to apply to the process object handle. More on this later|
+|`[in, optional] PCLIENT_ID ClientId`|`&cid`| A pointer to a client ID that identifies the thread whose process is to be opened.|
+
+There are two parts which I want to touch upon first:
+- `PCLIENT_ID`: Pointer to a structure contains identifiers of a process and a thread. For our case, we zero out the initial structure, and then set the `UniqueProcess` process, which should point to the Process ID. However, the `UniqueProcess` parameter takes a `HANDLE` instead of a `ULONG`, so we use the `ULongToHandle()` function to make that conversion. 
+- `POBJECT_ATTRIBUTES` - A pointer to a structure which specifices the project object's attributes. This is usually used to set the Security Descriptor for the process handle, but since we have no special requirements like that, we would be zero-ing it all. The  documentation for `ZwOpenProcess()` states that:
+
+	> The ObjectName field of this structure must be set to NULL. 
+
+	So, we can always do something like:
+
+	```c
+	InitializeObjectAttributes(&objAttr, NULL, 0, NULL, NULL);
+	```
+
+	But, we have a an easier way of doing it with the `RTL_CONSTANT_OBJECT_ATTRIBUTES()` macro which expands to:
+
+	```c
+	#define RTL_CONSTANT_OBJECT_ATTRIBUTES(n, a) { sizeof(OBJECT_ATTRIBUTES), NULL, n, a, NULL, NULL }
+	```
+
+Once, these parameters are intialized and if the call to `ZwOpenProcess()` is successful, we copy the value of the handle to the shared buffer space. Note that in Buffered I/O, the input and output share the same buffer, so, we will be copying the handle to the save memory we previously mapped the `ProcessData` struct from. 
+
+With the handle value copied, we can go ahead and complete the Irp using the ` CompleteRequest()` helper function we talked about earlier. 
+
+---
+
+With that done, we are now done with the driver, and can move safely to the client side of the code. 
 
 ## Client 
 
