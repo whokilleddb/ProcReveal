@@ -18,7 +18,7 @@ int main(int argc, char * argv[]) {
 
 	hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
 	if (hProcess != NULL) {
-		printf("[i] Opened target process with `PROCESS_ALL_ACCESS` using OpenProcess()\n");
+		printf("[i] Opened handle to target process using OpenProcess():\t0x%p\n", hProcess);
 		CloseHandle(hProcess);
 		return 1;
 	}
@@ -44,7 +44,8 @@ int main(int argc, char * argv[]) {
 	CloseHandle(hDevice);
 
 	if (hProcess) {
-		printf("[i] Successfully opened handle to target:\t0x%p\n", hProcess);
+		printf("[i] Successfully opened handle to target:\t0x%p\n[i] Hit Enter to close the handle", hProcess);
+		getchar();
 		CloseHandle(hProcess);
 		return 0;
 	} 
